@@ -43,22 +43,22 @@ class DataFrames:
 global_vars = {}
 
 
-def execute_inst(instruction, counter, input_src, data_frames):
-    if(instruction.opcode == "DEFVAR"):
-        defvar(instruction.args, data_frames)
-    if(instruction.opcode == "MOVE"):
-        move(instruction.args, data_frames)
-    if(instruction.opcode == "WRITE"):
-        write(instruction.args, data_frames)
-    if(instruction.opcode == "READ"):
-        read(instruction.args,
-             counter, input_src, data_frames)
-    if(instruction.opcode == "CREATEFRAME"):
-        create_frame(data_frames)
-    if(instruction.opcode == "PUSHFRAME"):
-        push_frame(data_frames)
-    if(instruction.opcode == "POPFRAME"):
-        pop_frame(data_frames)
+def execute_inst(instructions,prg_len, counter, input_src, data_frames):
+    for counter.inst_counter in range(prg_len):
+        if instructions[counter.inst_counter].opcode == "DEFVAR":
+            defvar(instructions[counter.inst_counter].args, data_frames)
+        if instructions[counter.inst_counter].opcode == "MOVE":
+            move(instructions[counter.inst_counter].args, data_frames)
+        if instructions[counter.inst_counter].opcode == "WRITE":
+            write(instructions[counter.inst_counter].args, data_frames)
+        if instructions[counter.inst_counter].opcode == "READ":
+            read(instructions[counter.inst_counter].args, counter, input_src, data_frames)
+        if instructions[counter.inst_counter].opcode == "CREATEFRAME":
+            create_frame(data_frames)
+        if instructions[counter.inst_counter].opcode == "PUSHFRAME":
+            push_frame(data_frames)
+        if instructions[counter.inst_counter].opcode == "POPFRAME":
+            pop_frame(data_frames)
 
 
 def create_frame(data_frames):
@@ -237,8 +237,7 @@ def main():
     counter = Counter(0, 0)
     prg_len = len(instructions)
 
-    for inst_pos in range(prg_len):
-        execute_inst(instructions[inst_pos], counter, input_src, data_frames)
+    execute_inst(instructions,prg_len, counter, input_src, data_frames)
 
     # print(global_vars["a"].value)
     # print(instructions[1].arg1.text)
