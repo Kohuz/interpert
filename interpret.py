@@ -7,12 +7,10 @@ import xml.etree.ElementTree as ET
 
 
 class Instruction:
-    def __init__(self, order, opcode, arg1=None, arg2=None, arg3=None):
+    def __init__(self, order, opcode, args):
         self.order = order
         self.opcode = opcode
-        self.arg1 = arg1
-        self.arg2 = arg2
-        self.arg3 = arg3
+        self.args = args
 
 
 class Argument:
@@ -31,8 +29,9 @@ class Variable:
 
 
 class Counter:
-    def __init__(self, file_line):
+    def __init__(self, file_line, inst_counter):
         self.file_line = file_line
+        self.inst_counter = inst_counter
 
 
 class DataFrames:
@@ -46,13 +45,13 @@ global_vars = {}
 
 def execute_inst(instruction, counter, input_src, data_frames):
     if(instruction.opcode == "DEFVAR"):
-        defvar(instruction.arg1, data_frames)
+        defvar(instruction.args, data_frames)
     if(instruction.opcode == "MOVE"):
-        move(instruction.arg1, instruction.arg2, data_frames)
+        move(instruction.args, data_frames)
     if(instruction.opcode == "WRITE"):
-        write(instruction.arg1, data_frames)
+        write(instruction.args, data_frames)
     if(instruction.opcode == "READ"):
-        read(instruction.arg1, instruction.arg2,
+        read(instruction.args,
              counter, input_src, data_frames)
     if(instruction.opcode == "CREATEFRAME"):
         create_frame(data_frames)
@@ -63,14 +62,14 @@ def execute_inst(instruction, counter, input_src, data_frames):
 
 
 def create_frame(data_frames):
-    data_frames.temp_frame = {}
+    data_frames.temp_frame = dict()
 
 
 def push_frame(data_frames):
     if data_frames.temp_frame == None:
         print("Temp frame doesnt exist")
         exit(55)
-    data_frames.frames.push(data_frames.temp_frame)
+    data_frames.frames.append(data_frames.temp_frame)
     data_frames.temp_frame = None
 
 
@@ -81,8 +80,8 @@ def pop_frame(data_frames):
     data_frames.temp_frame = data_frames.frames.pop()
 
 
-def defvar(arg, data_frames):
-    split_arg = arg.text.split("@")
+def defvar(args, data_frames):
+    split_arg = args[0].text.split("@")
     is_global = False
     if split_arg[0] == "GF":
         is_global = True
@@ -96,52 +95,77 @@ def defvar(arg, data_frames):
         data_frames.temp_frame[var.name] = var
 
 
-def move(arg1, arg2, data_frames):
+def move(args, data_frames):
     # check if var from arg1 exists
-    split_arg1 = arg1.text.split("@")
+
+    split_arg1 = args[0].text.split("@")
     if split_arg1[0] == "GF":
         if split_arg1[1] not in global_vars:
             print("variable not in global_vars")
             exit(55)
     elif split_arg1[0] == "TF":
-        pass  # TODO
+        if split_arg1[1] not in data_frames.temp_frame:
+            print("variable not in temporary frame")
+            exit(55)
     elif split_arg1[0] == "LF":
-        pass  # TODO
+        if split_arg1[1] not in data_frames.frames[-1]:
+            print("variable not in local frame")
+            exit(55)
 
-    if arg2.type == "var":
-        split_arg2 = arg2.text.split("@")
+    if args[1].type == "var":
+        split_arg2 = args[1].text.split("@")
         if split_arg2[0] == "GF":
             if split_arg2[1] not in global_vars:
                 print("variable not in global_vars")
                 exit(55)
             global_vars[split_arg1[1]].value = global_vars[split_arg2[1]].value
         elif split_arg1[0] == "TF":
-            pass  # TODO
+            if split_arg2[1] not in data_frames.temp_frame:
+                print("variable not in temporary frame")
+                exit(55)
+            data_frames.temp_frame[split_arg1[1]
+                                   ].value = global_vars[split_arg2[1]].value
         elif split_arg1[0] == "LF":
-            pass  # TODO
+            if split_arg2[1] not in data_frames.frames[-1]:
+                print("variable not in local frame")
+                exit(55)
+            data_frames.frames[-1][split_arg1[1]
+                                   ].value = global_vars[split_arg2[1]].value
     else:
-        global_vars[split_arg1[1]].value = arg2.text
+        split_arg2 = args[1].text.split("@")
+        if split_arg2[0] == "GF":
+            global_vars[split_arg1[1]].value = args[1].text
+        elif split_arg1[0] == "TF":
+            data_frames.temp_frame[split_arg1[1]].value = args[1].text
+        elif split_arg1[0] == "LF":
+            data_frames.frames[-1][split_arg1[1]].value = args[1].text
 
 
-def write(arg, data_frames):
-    if arg.type == "var":
-        split_arg = arg.text.split("@")
+def write(args, data_frames):
+    if args[0].type == "var":
+        split_arg = args[0].text.split("@")
         if split_arg[0] == "GF":
             if split_arg[1] not in global_vars:
                 print("variable not in global_vars")
                 exit(55)
             print(global_vars[split_arg[1]].value, end="")
         elif split_arg[0] == "TF":
-            pass  # TODO
+            if split_arg[1] not in data_frames.temp_frame:
+                print("variable not in temporary frame")
+                exit(55)
+            print(data_frames.temp_frame[split_arg[1]].value, end="")
         elif split_arg[0] == "LF":
-            pass  # TODO
+            if split_arg[1] not in data_frames.frames[-1]:
+                print("variable not in local frame")
+                exit(55)
+            print(data_frames.frames[-1][split_arg[1]].value, end="")
     else:
-        print(arg.text, end="")
+        print(args[0].text, end="")
 
 
-def read(arg1, arg2, counter, input_src, data_frames):
+def read(args, counter, input_src, data_frames):
     # check if var from arg1 exists
-    split_arg1 = arg1.text.split("@")
+    split_arg1 = args[0].text.split("@")
     if split_arg1[0] == "GF":
         if split_arg1[1] not in global_vars:
             print("variable not in global_vars")
@@ -193,7 +217,6 @@ def main():
     root = tree.getroot()
 
     instructions = []
-    args = [None, None, None]
     for elem in root.iter():
         if elem.tag == "instruction":
             for child in elem:
@@ -201,19 +224,19 @@ def main():
                 args.append(arg)
                 if args[0] != None:
                     args.sort(key=lambda x: x.order)
-                print(args)
             inst = Instruction(elem.attrib['order'], elem.attrib['opcode'],
-                               args[0], args[1],)
+                               args)
             instructions.append(inst)
-        args = [None, None, None]
+        args = []
 
-    instructions.sort(key=lambda x: x.order)
+    instructions.sort(key=lambda x: int(x.order))
 
     # Start executing program
 
     data_frames = DataFrames()
-    counter = Counter(0)
+    counter = Counter(0, 0)
     prg_len = len(instructions)
+
     for inst_pos in range(prg_len):
         execute_inst(instructions[inst_pos], counter, input_src, data_frames)
 
