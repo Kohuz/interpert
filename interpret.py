@@ -38,6 +38,7 @@ class DataFrames:
     def __init__(self):
         self.frames = []
         self.temp_frame = None
+        self.labels = {}
 
 
 global_vars = {}
@@ -45,6 +46,10 @@ global_vars = {}
 
 def execute_inst(instructions,prg_len, counter, input_src, data_frames):
     for counter.inst_counter in range(prg_len):
+        if instructions[counter.inst_counter].opcode == "LABEL":
+            label(instructions[counter.inst_counter], data_frames)
+    counter.inst_counter = 0
+    while counter.inst_counter < prg_len:
         if instructions[counter.inst_counter].opcode == "DEFVAR":
             defvar(instructions[counter.inst_counter].args, data_frames)
         if instructions[counter.inst_counter].opcode == "MOVE":
@@ -59,7 +64,25 @@ def execute_inst(instructions,prg_len, counter, input_src, data_frames):
             push_frame(data_frames)
         if instructions[counter.inst_counter].opcode == "POPFRAME":
             pop_frame(data_frames)
+        if instructions[counter.inst_counter].opcode == "JUMP":
+            jump(instructions[counter.inst_counter],instructions, data_frames, counter)
+        counter.inst_counter += 1
 
+def jump(instruction,instructions, data_frames, counter):
+    if instruction.args[0].text not in data_frames.labels:
+        print("Label doesnt exist")
+        exit(52)
+    help = data_frames.labels[instruction.args[0].text]
+    jmp_index = instructions.index(help)
+    counter.inst_counter = jmp_index
+    #print("Jumping to inst number" + counter.inst_counter)
+
+
+def label(instruction, data_frames):
+    if instruction.args[0].text in data_frames.labels:
+        print("Label aready defined")
+        exit(52)
+    data_frames.labels[instruction.args[0].text] = instruction
 
 def create_frame(data_frames):
     data_frames.temp_frame = dict()
