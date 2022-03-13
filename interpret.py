@@ -39,6 +39,7 @@ class DataFrames:
         self.frames = []
         self.temp_frame = None
         self.labels = {}
+        self.call_stack = []
 
 
 global_vars = {}
@@ -66,14 +67,26 @@ def execute_inst(instructions,prg_len, counter, input_src, data_frames):
             pop_frame(data_frames)
         if instructions[counter.inst_counter].opcode == "JUMP":
             jump(instructions[counter.inst_counter],instructions, data_frames, counter)
+        if instructions[counter.inst_counter].opcode == "CALL":
+            data_frames.call_stack.append(counter.inst_counter+1)
+            jump(instructions[counter.inst_counter],instructions, data_frames, counter)
+        if instructions[counter.inst_counter].opcode == "RETURN":
+            return_inst(data_frames, counter)
         counter.inst_counter += 1
+
+def return_inst(data_frames, counter):
+    if not data_frames.call_stack:
+        print("Call stack is empty")
+        exit(56)
+    jmp_index = data_frames.call_stack.pop()
+    counter.inst_counter = jmp_index
 
 def jump(instruction,instructions, data_frames, counter):
     if instruction.args[0].text not in data_frames.labels:
         print("Label doesnt exist")
         exit(52)
-    help = data_frames.labels[instruction.args[0].text]
-    jmp_index = instructions.index(help)
+    inst = data_frames.labels[instruction.args[0].text]
+    jmp_index = instructions.index(inst)
     counter.inst_counter = jmp_index
     #print("Jumping to inst number" + counter.inst_counter)
 
