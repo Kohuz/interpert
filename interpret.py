@@ -51,27 +51,30 @@ def execute_inst(instructions,prg_len, counter, input_src, data_frames):
             label(instructions[counter.inst_counter], data_frames)
     counter.inst_counter = 0
     while counter.inst_counter < prg_len:
-        if instructions[counter.inst_counter].opcode == "DEFVAR":
-            defvar(instructions[counter.inst_counter].args, data_frames)
-        if instructions[counter.inst_counter].opcode == "MOVE":
-            move(instructions[counter.inst_counter].args, data_frames)
-        if instructions[counter.inst_counter].opcode == "WRITE":
-            write(instructions[counter.inst_counter].args, data_frames)
-        if instructions[counter.inst_counter].opcode == "READ":
-            read(instructions[counter.inst_counter].args, counter, input_src, data_frames)
-        if instructions[counter.inst_counter].opcode == "CREATEFRAME":
+        instruction = instructions[counter.inst_counter]
+        if instruction.opcode == "DEFVAR":
+            defvar(instruction.args, data_frames)
+        if instruction.opcode == "MOVE":
+            move(instruction.args, data_frames)
+        if instruction.opcode == "WRITE":
+            write(instruction.args, data_frames)
+        if instruction.opcode == "READ":
+            read(instruction.args, counter, input_src, data_frames)
+        if instruction.opcode == "CREATEFRAME":
             create_frame(data_frames)
-        if instructions[counter.inst_counter].opcode == "PUSHFRAME":
+        if instruction.opcode == "PUSHFRAME":
             push_frame(data_frames)
-        if instructions[counter.inst_counter].opcode == "POPFRAME":
+        if instruction.opcode == "POPFRAME":
             pop_frame(data_frames)
-        if instructions[counter.inst_counter].opcode == "JUMP":
-            jump(instructions[counter.inst_counter],instructions, data_frames, counter)
-        if instructions[counter.inst_counter].opcode == "CALL":
+        if instruction.opcode == "JUMP":
+            jump(instruction, instructions, data_frames, counter)
+        if instruction.opcode == "CALL":
             data_frames.call_stack.append(counter.inst_counter+1)
-            jump(instructions[counter.inst_counter],instructions, data_frames, counter)
-        if instructions[counter.inst_counter].opcode == "RETURN":
+            jump(instruction, instructions, data_frames, counter)
+        if instruction.opcode == "RETURN":
             return_inst(data_frames, counter)
+        if instruction.opcode in ["ADD", "MUL", "IDIV", "SUB"]:
+            arithmetic(instruction.args, data_frames, instruction)
         counter.inst_counter += 1
 
 def return_inst(data_frames, counter):
@@ -115,6 +118,19 @@ def pop_frame(data_frames):
         exit(55)
     data_frames.temp_frame = data_frames.frames.pop()
 
+def check_var_doesnt_exist(type, var_name, data_frames):
+    if type == "GF":
+        if var_name in global_vars:
+            print("variable already defined")
+            exit(55)
+    elif type == "TF":
+        if var_name in data_frames.temp_frame:
+            print("variable already defined")
+            exit(55)
+    elif type == "LF":
+        if var_name in data_frames.frames[-1]:
+            print("variable already defined")
+            exit(55)
 
 def defvar(args, data_frames):
     split_arg = args[0].text.split("@")
@@ -130,46 +146,38 @@ def defvar(args, data_frames):
         var = Variable(split_arg[1], is_global, None, None)
         data_frames.temp_frame[var.name] = var
 
-
-def move(args, data_frames):
-    # check if var from arg1 exists
-
-    split_arg1 = args[0].text.split("@")
-    if split_arg1[0] == "GF":
-        if split_arg1[1] not in global_vars:
+def check_var_exists(type, var_name, data_frames):
+    if type == "GF":
+        if var_name not in global_vars:
             print("variable not in global_vars")
             exit(55)
-    elif split_arg1[0] == "TF":
-        if split_arg1[1] not in data_frames.temp_frame:
+    elif type == "TF":
+        if var_name not in data_frames.temp_frame:
             print("variable not in temporary frame")
             exit(55)
-    elif split_arg1[0] == "LF":
-        if split_arg1[1] not in data_frames.frames[-1]:
+    elif type == "LF":
+        if var_name not in data_frames.frames[-1]:
             print("variable not in local frame")
             exit(55)
-
+def check_var_exp(args, data_frames):
+    for arg in args:
+        if arg.type == "var":
+            split_arg = arg.text.split("@")
+            check_var_exists(split_arg[0], split_arg[1], data_frames)
+def move(args, data_frames):
+    # check if var from arg1 exists
+    check_var_exp(args, data_frames)
+    split_arg1 = args[0].text.split("@")
     if args[1].type == "var":
         split_arg2 = args[1].text.split("@")
         if split_arg2[0] == "GF":
-            if split_arg2[1] not in global_vars:
-                print("variable not in global_vars")
-                exit(55)
             global_vars[split_arg1[1]].value = global_vars[split_arg2[1]].value
         elif split_arg1[0] == "TF":
-            if split_arg2[1] not in data_frames.temp_frame:
-                print("variable not in temporary frame")
-                exit(55)
-            data_frames.temp_frame[split_arg1[1]
-                                   ].value = global_vars[split_arg2[1]].value
+            data_frames.temp_frame[split_arg1[1]].value = data_frames.temp_frame[split_arg2[1]].value
         elif split_arg1[0] == "LF":
-            if split_arg2[1] not in data_frames.frames[-1]:
-                print("variable not in local frame")
-                exit(55)
-            data_frames.frames[-1][split_arg1[1]
-                                   ].value = global_vars[split_arg2[1]].value
+            data_frames.frames[-1][split_arg1[1]].value = data_frames.frames[-1][split_arg2[1]].value
     else:
-        split_arg2 = args[1].text.split("@")
-        if split_arg2[0] == "GF":
+        if split_arg1[0] == "GF":
             global_vars[split_arg1[1]].value = args[1].text
         elif split_arg1[0] == "TF":
             data_frames.temp_frame[split_arg1[1]].value = args[1].text
@@ -180,24 +188,15 @@ def move(args, data_frames):
 def write(args, data_frames):
     if args[0].type == "var":
         split_arg = args[0].text.split("@")
+        check_var_exists(split_arg[0], split_arg[1], data_frames)
         if split_arg[0] == "GF":
-            if split_arg[1] not in global_vars:
-                print("variable not in global_vars")
-                exit(55)
             print(global_vars[split_arg[1]].value, end="")
         elif split_arg[0] == "TF":
-            if split_arg[1] not in data_frames.temp_frame:
-                print("variable not in temporary frame")
-                exit(55)
             print(data_frames.temp_frame[split_arg[1]].value, end="")
         elif split_arg[0] == "LF":
-            if split_arg[1] not in data_frames.frames[-1]:
-                print("variable not in local frame")
-                exit(55)
             print(data_frames.frames[-1][split_arg[1]].value, end="")
     else:
         print(args[0].text, end="")
-
 
 def read(args, counter, input_src, data_frames):
     # check if var from arg1 exists
@@ -213,6 +212,61 @@ def read(args, counter, input_src, data_frames):
 
     print("in read: " + input_src[counter.file_line])
     counter.file_line = counter.file_line+1
+
+
+def arithmetic(args, data_frames, instruction):
+    if args[0].type != "var":
+        print("first argument must be a var")
+        exit(55)#TODO
+    ##TODO WRONG, NEED TO CHECK BETTER
+    # if args[1].type != "int" or args[2].type != "int":
+    #     print("both arguments must be of type int")
+    #     exit(55)#TODO
+
+    check_var_exp(args, data_frames)
+    split_arg1 = args[0].text.split("@")
+    first_value = 0
+    second_value = 0
+    result = 0
+    if args[1].type == "var":
+        split_arg2 = args[1].text.split("@")
+        if split_arg2[0] == "GF":
+            first_value = global_vars[split_arg2[1]].value
+        elif split_arg2[0] == "TF":
+            first_value = data_frames.temp_frame[split_arg2[1]].value
+        elif split_arg2[0] == "LF":
+            first_value = data_frames.frames[-1][split_arg2[1]].value
+    else:
+        first_value = args[1].text
+    if args[2].type == "var":
+        split_arg3 = args[2].text.split("@")
+        if split_arg3[0] == "GF":
+            second_value = global_vars[split_arg3[1]].value
+        elif split_arg3[0] == "TF":
+            second_value = data_frames.temp_frame[split_arg3[1]].value
+        elif split_arg3[0] == "LF":
+            second_value = data_frames.frames[-1][split_arg3[1]].value
+    else:
+         second_value = args[2].text
+    first_value = int(first_value)
+    second_value = int(second_value)
+    if instruction.opcode == "ADD":
+        result = first_value + second_value
+    if instruction.opcode == "SUB":
+        result = first_value - second_value
+    if instruction.opcode == "MUL":
+        result = first_value * second_value
+    if instruction.opcode == "IDIV":
+        if second_value == 0:
+            print("Cannot divide by zero")
+            exit(57)
+        result = first_value // second_value
+    if split_arg1[0] == "GF":
+        global_vars[split_arg1[1]].value = result
+    elif split_arg1[0] == "TF":
+        data_frames.temp_frame[split_arg1[1]].value = result
+    elif split_arg1[0] == "LF":
+        data_frames.frames[-1][split_arg1[1]].value = result
 
 
 def main():
