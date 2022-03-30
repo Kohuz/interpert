@@ -21,12 +21,11 @@ class Argument:
 
 
 class Variable:
-    def __init__(self, name, is_global, value, arg_type, data_type):
+    def __init__(self, name, is_global, value, arg_type):
         self.name = name
         self.is_global = is_global
         self.value = value
         self.arg_type = arg_type
-        self.data_type = data_type
 
 
 class Counter:
@@ -57,50 +56,50 @@ def execute_inst(instructions,prg_len, counter, input_src, data_frames):
         instruction = instructions[counter.inst_counter]
         if instruction.opcode == "DEFVAR":
             defvar(instruction.args, data_frames)
-        if instruction.opcode == "MOVE":
+        elif instruction.opcode == "MOVE":
             move(instruction.args, data_frames)
-        if instruction.opcode == "WRITE":
+        elif instruction.opcode == "WRITE":
             write(instruction.args, data_frames)
-        if instruction.opcode == "READ":
+        elif instruction.opcode == "READ":
             read(instruction.args, counter, input_src, data_frames)
-        if instruction.opcode == "CREATEFRAME":
+        elif instruction.opcode == "CREATEFRAME":
             create_frame(data_frames)
-        if instruction.opcode == "PUSHFRAME":
+        elif instruction.opcode == "PUSHFRAME":
             push_frame(data_frames)
-        if instruction.opcode == "POPFRAME":
+        elif instruction.opcode == "POPFRAME":
             pop_frame(data_frames)
-        if instruction.opcode == "PUSHS":
+        elif instruction.opcode == "PUSHS":
             pushs(instruction.args, data_frames)
-        if instruction.opcode == "JUMP":
+        elif instruction.opcode == "JUMP":
             jump(instruction, instructions, data_frames, counter)
-        if instruction.opcode == "CALL":
+        elif instruction.opcode == "CALL":
             data_frames.call_stack.append(counter.inst_counter+1)
             jump(instruction, instructions, data_frames, counter)
-        if instruction.opcode == "RETURN":
+        elif instruction.opcode == "RETURN":
             return_inst(data_frames, counter)
-        if instruction.opcode in ["ADD", "MUL", "IDIV", "SUB"]:
+        elif instruction.opcode in ["ADD", "MUL", "IDIV", "SUB"]:
             arithmetic(instruction.args, data_frames, instruction)
-        if instruction.opcode in ["AND", "OR", "LT", "GT", "EQ"]:
+        elif instruction.opcode in ["AND", "OR", "LT", "GT", "EQ"]:
             and_or(instruction.args, data_frames, instruction)
-        if instruction.opcode == "NOT":
+        elif instruction.opcode == "NOT":
             not_inst(instruction.args, data_frames, instruction)
-        if instruction.opcode == "PUSHS":
+        elif instruction.opcode == "PUSHS":
             pushs(instruction.args, data_frames)
-        if instruction.opcode == "POPS":
+        elif instruction.opcode == "POPS":
             pops(instruction.args, data_frames)
-        if instruction.opcode == "TYPE":
+        elif instruction.opcode == "TYPE":
             type_inst(instruction.args, data_frames)
-        if instruction.opcode == "INT2CHAR":
+        elif instruction.opcode == "INT2CHAR":
             type_inst(instruction.args, data_frames)
-        if instruction.opcode == "STRI2INT":
+        elif instruction.opcode == "STRI2INT":
             str2int(instruction.args, data_frames)
-        if instruction.opcode == "CONCAT":
+        elif instruction.opcode == "CONCAT":
             concat(instruction.args, data_frames)
-        if instruction.opcode == "GETCHAR":
+        elif instruction.opcode == "GETCHAR":
             getchar(instruction.args, data_frames)
-        if instruction.opcode == "SETCHAR":
+        elif instruction.opcode == "SETCHAR":
             setchar(instruction.args, data_frames)
-        if instruction.opcode == "STRLEN":
+        elif instruction.opcode == "STRLEN":
             strlen(instruction.args, data_frames)
         counter.inst_counter += 1
 
@@ -267,16 +266,17 @@ def defvar(args, data_frames):
     is_global = False
     if split_arg[0] == "GF":
         is_global = True
-        var = Variable(split_arg[1], is_global, None, "", "")
+        var = Variable(split_arg[1], is_global, None, "")
         data_frames.global_vars[var.name] = var
     elif split_arg[0] == "LF":
-        var = Variable(split_arg[1], is_global, None, "", "")
+        #TODO CHECK LF DOESNT EXIST
+        var = Variable(split_arg[1], is_global, None, "")
         data_frames.frames[-1][var.name] = var
     elif split_arg[0] == "TF":
         if data_frames.temp_frame is None:
             print("TF doesnt exist")
             exit(55)
-        var = Variable(split_arg[1], is_global, None, "", "")
+        var = Variable(split_arg[1], is_global, None, "")
         data_frames.temp_frame[var.name] = var
 
 
@@ -293,6 +293,7 @@ def check_var_exists(type, var_name, data_frames):
             print("variable not in temporary frame")
             exit(55)
     elif type == "LF":
+        #TODO CHECK FRAME EXISTS
         if var_name not in data_frames.frames[-1]:
             print("variable not in local frame")
             exit(55)
@@ -309,28 +310,29 @@ def move(args, data_frames):
     # check if var from arg1 exists
     #TODO move types
     check_var(args, data_frames)
+    assigned_var = get_var(args[0], data_frames)
     split_arg1 = args[0].value.split("@")
     if args[1].arg_type == "var":
         split_arg2 = args[1].value.split("@")
-        if split_arg2[0] == "GF":
-            data_frames.global_vars[split_arg1[1]] = data_frames.global_vars[split_arg2[1]]
-        elif split_arg1[0] == "TF":
-            data_frames.temp_frame[split_arg1[1]] = data_frames.temp_frame[split_arg2[1]]
-        elif split_arg1[0] == "LF":
-            data_frames.frames[-1][split_arg1[1]] = data_frames.frames[-1][split_arg2[1]]
+        assigned_var = get_var(args[1], data_frames)
+        # if split_arg2[0] == "GF":
+        #     data_frames.global_vars[split_arg1[1]] = get_var(args[1], data_frames)#data_frames.global_vars[split_arg2[1]]
+        # elif split_arg1[0] == "TF":
+        #     data_frames.temp_frame[split_arg1[1]] = get_var(args[1], data_frames)#data_frames.temp_frame[split_arg2[1]]
+        # elif split_arg1[0] == "LF":
+        #     data_frames.frames[-1][split_arg1[1]] = get_var(args[1], data_frames)#data_frames.frames[-1][split_arg2[1]]
     else:
-        if split_arg1[0] == "GF":
-            data_frames.global_vars[split_arg1[1]].value = args[1].value
-            data_frames.global_vars[split_arg1[1]].arg_type = args[1].arg_type
-            data_frames.global_vars[split_arg1[1]].data_type = args[1].arg_type
-        elif split_arg1[0] == "TF":
-            data_frames.temp_frame[split_arg1[1]].value = args[1].value
-            data_frames.temp_frame[split_arg1[1]].arg_value = args[1].arg_type
-            data_frames.temp_frame[split_arg1[1]].data_type = args[1].arg_type
-        elif split_arg1[0] == "LF":
-            data_frames.frames[-1][split_arg1[1]].value = args[1].value
-            data_frames.frames[-1][split_arg1[1]].arg_type = args[1].arg_type
-            data_frames.frames[-1][split_arg1[1]].data_type = args[1].arg_type
+        assigned_var.value = args[1].value
+        assigned_var.arg_type = args[1].arg_type
+        # if split_arg1[0] == "GF":
+        #     data_frames.global_vars[split_arg1[1]].value = args[1].value
+        #     data_frames.global_vars[split_arg1[1]].data_type = args[1].arg_type
+        # elif split_arg1[0] == "TF":
+        #     data_frames.temp_frame[split_arg1[1]].value = args[1].value
+        #     data_frames.temp_frame[split_arg1[1]].data_type = args[1].arg_type
+        # elif split_arg1[0] == "LF":
+        #     data_frames.frames[-1][split_arg1[1]].value = args[1].value
+        #     data_frames.frames[-1][split_arg1[1]].data_type = args[1].arg_type
 
 
 def write(args, data_frames):
@@ -346,22 +348,37 @@ def write(args, data_frames):
     else:
         res = args[0].value
     if isinstance(res, str):
-        res = res.replace('\\032', ' ')
+        res = re.sub(r'\\(\d{3})', lambda y: chr(int(y[1])), res)
+        #res = res.replace('\\032', ' ')
     print(res, end="")
 
 
 def read(args, counter, input_src, data_frames):
     check_var(args, data_frames)
     split_arg1 = args[0].value.split("@")
-    if split_arg1[0] == "GF":
-        data_frames.global_vars[split_arg1[1]].value = input_src[counter.file_line]
-        #global_vars[split_arg1[1]].arg_type = get_type(args[1].arg_type)
-    elif split_arg1[0] == "TF":
-        data_frames.temp_frame[split_arg1[1]].value = input_src[counter.file_line]
-        #data_frames.temp_frame[split_arg1[1]].arg_value = get_type(args[1].arg_type)
-    elif split_arg1[0] == "LF":
-        data_frames.frames[-1][split_arg1[1]].value = input_src[counter.file_line]
-        #data_frames.frames[-1][split_arg1[1]].arg_type = get_type(args[1].arg_type)
+    assigned_var = get_var(args[0], data_frames)
+    #assigned_var.value = input_src[counter.file_line]
+    if args[1].value == "int":
+        try:
+            assigned_var.value = int(input_src[counter.file_line])
+            assigned_var.arg_type = "int"
+        except ValueError:
+            assigned_var.value = "nil"
+            assigned_var.arg_type = "nil"
+            return
+    elif args[1].value == "string":
+        assigned_var.value = str(input_src[counter.file_line])
+        assigned_var.arg_type = "str"
+    elif args[1].value == "bool":
+        assigned_var.arg_type = "bool"
+        if input_src[counter.file_line] == "true":
+            assigned_var.value = "true"
+        else:
+            assigned_var.value = "false"
+    else:
+        assigned_var.value = "nil"
+        assigned_var.arg_type = "nil"
+
     counter.file_line += 1
 
 
@@ -374,14 +391,6 @@ def get_var(argument, data_frames):
     elif split_arg2[0] == "LF":
         value = data_frames.frames[-1][split_arg2[1]]
     return value
-
-def get_type(value):
-    if value == "false" or "true":
-        return "bool"
-    if check_int(value):
-        return "int"
-    else:
-        return "string"
 
 
 def check_int(value):
@@ -402,23 +411,21 @@ def arithmetic(args, data_frames, instruction):
     if args[0].arg_type != "var":
         print("first argument must be a var")
         exit(55)#TODO
-    #TODO WRONG, NEED TO CHECK BETTER
     check_var(args, data_frames)
-    split_arg1 = args[0].value.split("@")
     result = 0
     if args[1].arg_type == "var":
-        first_value = get_var(args[1], data_frames)
+        first_operand = get_var(args[1], data_frames)
     else:
-        first_value = args[1].value
+        first_operand = args[1]
     if args[2].arg_type == "var":
-        second_value = get_var(args[2], data_frames)
+        second_operand = get_var(args[2], data_frames)
     else:
-        second_value = args[2].value
-    if not check_int(first_value) or not check_int(second_value):
+        second_operand = args[2]
+    if first_operand.arg_type != "int" or second_operand.arg_type != "int":
         print("both arguments must be int")
         exit(32)#TODO
-    first_value = int(first_value)
-    second_value = int(second_value)
+    first_value = int(first_operand.value)
+    second_value = int(second_operand.value)
     if instruction.opcode == "ADD":
         result = first_value + second_value
     if instruction.opcode == "SUB":
@@ -430,12 +437,9 @@ def arithmetic(args, data_frames, instruction):
             print("Cannot divide by zero")
             exit(57)
         result = first_value // second_value
-    if split_arg1[0] == "GF":
-        data_frames.global_vars[split_arg1[1]].value = result
-    elif split_arg1[0] == "TF":
-        data_frames.temp_frame[split_arg1[1]].value = result
-    elif split_arg1[0] == "LF":
-        data_frames.frames[-1][split_arg1[1]].value = result
+    result_var = get_var(args[0], data_frames)
+    result_var.value = result
+    result_var.arg_type = "int"
 
 
 def and_or(args, data_frames, instruction):
@@ -446,35 +450,29 @@ def and_or(args, data_frames, instruction):
     split_arg1 = args[0].value.split("@")
     result = None
     if args[1].arg_type == "var":
-        first_value = get_var(args[1], data_frames)
-        #first_type = get_type(args[1], data_frames)
+        first_operand = get_var(args[1], data_frames)
     else:
-        first_value = args[1]
+        first_operand = args[1]
     if args[2].arg_type == "var":
-        second_value = get_var(args[2], data_frames)
-        #second_type = get_type(args[1], data_frames)TODO
+        second_operand = get_var(args[2], data_frames)
     else:
-        second_value = args[2]
+        second_operand = args[2]
     if instruction.opcode in ["AND", "OR"]:
-        if not check_bool(first_value) or not check_bool(second_value):
+        if first_operand.arg_type != "bool" or second_operand.arg_type != "bool":
             print("both arguments must be bool")
             exit(32)  # TODO
+    first_value = convert_str_bool(first_operand.value)
+    second_value = convert_str_bool(second_operand.value)
     if instruction.opcode == "AND":
-        result = first_value.value and second_value.value
+        result = first_value and second_value
     if instruction.opcode == "OR":
-        result = first_value.value or second_value.value
+        result = first_value or second_value
     if instruction.opcode in ["LT", "GT", "EQ"]:
-        result = logical(first_value, second_value, instruction)
+        result = logical(first_operand, second_operand, instruction)
 
-    if split_arg1[0] == "GF":
-        data_frames.global_vars[split_arg1[1]].value = result
-        data_frames.global_vars[split_arg1[1]].arg_type = "bool"
-    elif split_arg1[0] == "TF":
-        data_frames.temp_frame[split_arg1[1]].value = result
-        data_frames.temp_frame[split_arg1[1]].arg_type = "bool"
-    elif split_arg1[0] == "LF":
-        data_frames.frames[-1][split_arg1[1]].value = result
-        data_frames.temp_frame[split_arg1[1]].arg_type = "bool"
+    result_var = get_var(args[0], data_frames)
+    result_var.value = convert_bool_str(result)
+    result_var.arg_type = "bool"
 
 
 def logical(first_value, second_value, instruction):
@@ -506,6 +504,11 @@ def convert_bool_str(boolean):
         return "true"
     return "false"
 
+
+def convert_str_bool(str_val):
+    if str_val == "true":
+        return True
+    return False
 
 def not_inst(args, data_frames, instruction):
     if args[0].arg_type != "var":
