@@ -72,6 +72,8 @@ def execute_inst(instructions,prg_len, counter, input_src, data_frames):
             pushs(instruction.args, data_frames)
         elif instruction.opcode == "JUMP":
             jump(instruction, instructions, data_frames, counter)
+        elif instruction.opcode in ["JUMPIFEQ", "JUMPIFNEQ"]:
+            jump_eq(instruction, instructions, data_frames, counter)
         elif instruction.opcode == "CALL":
             data_frames.call_stack.append(counter.inst_counter+1)
             jump(instruction, instructions, data_frames, counter)
@@ -136,7 +138,16 @@ def str2int_getchar(args, data_frames, instruction):
 
 
 def concat(args, data_frames):
-    pass
+    if args[0].arg_type != "var":
+        print("first argument must be a var")
+        exit(55)#TODO
+    assigned_var = get_var(args[0], data_frames)
+    operands = unpack_args(args, data_frames)
+    if operands[1].arg_type != "str" or operands[2].arg_type != "int":
+        print("bad types")
+        exit(55)#TODO
+    assigned_var.value = operands[1].value + operands[2].value
+    assigned_var.arg_type = "str"
 
 
 
@@ -160,7 +171,21 @@ def getchar(args, data_frames):
 
 
 def setchar(args, data_frames):
-    pass
+    if args[0].arg_type != "var":
+        print("first argument must be a var")
+        exit(55)#TODO
+    assigned_var = get_var(args[0], data_frames)
+    operands = unpack_args(args, data_frames)
+    if operands[1].arg_type != "int" or operands[2].arg_type != "str":
+        print("bad types")
+        exit(55)#TODO
+    if operands[1].value < 0 or operands[1].value > len(operands[0].value):
+        print("Bad index in setchar")
+        exit(58)
+    if operands[2].value == "":
+        print("Empty string given in setchar")
+        exit(58)
+    operands[0].value[operands[1]] = operands[2].value[0]
 
 
 def strlen(args, data_frames):
@@ -210,6 +235,31 @@ def jump(instruction,instructions, data_frames, counter):
     inst = data_frames.labels[instruction.args[0].value]
     jmp_index = instructions.index(inst)
     counter.inst_counter = jmp_index
+    #print("Jumping to inst number" + counter.inst_counter)
+
+def jump_eq(instruction,instructions, data_frames, counter):
+    if instruction.args[0].value not in data_frames.labels:
+        print("Label doesnt exist")
+        exit(52)
+    operands = unpack_args(instruction.args, data_frames)
+    if (operands[1].arg_type != operands[2].arg_type and
+        operands[1].arg_type != "nil" and operands[2].arg_type != "nil"):
+        print("incompatible operands")
+        exit(53)
+    if operands[1].arg_type == "int":
+        operands[1].value = int(operands[1].value)
+    if operands[2].arg_type == "int":
+        operands[2].value = int(operands[2].value)
+    if instruction.opcode == "JUMPIFEQ":
+        if operands[1].value == operands[2].value:
+            inst = data_frames.labels[instruction.args[0].value]
+            jmp_index = instructions.index(inst)
+            counter.inst_counter = jmp_index
+    elif instruction.opcode == "JUMPIFNEQ":
+        if operands[1].value != operands[2].value:
+            inst = data_frames.labels[instruction.args[0].value]
+            jmp_index = instructions.index(inst)
+            counter.inst_counter = jmp_index
     #print("Jumping to inst number" + counter.inst_counter)
 
 
@@ -528,9 +578,6 @@ def main():
 
     args = vars(ap.parse_args())
 
-    input_mode = ""
-    input_src = ""
-    src_src = ""
     # One file must be present
     if args["source"] == None and args["input"] == None:
         ap.print_help()
@@ -587,11 +634,6 @@ def main():
     prg_len = len(instructions)
 
     execute_inst(instructions,prg_len, counter, input_src, data_frames)
-
-    # print(global_vars["a"].value)
-    # print(instructions[1].arg1.value)
-    pass
-
 
 if __name__ == "__main__":
     main()
