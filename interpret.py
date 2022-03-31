@@ -90,7 +90,7 @@ def execute_inst(instructions,prg_len, counter, input_src, data_frames):
         elif instruction.opcode == "TYPE":
             type_inst(instruction.args, data_frames)
         elif instruction.opcode == "INT2CHAR":
-            type_inst(instruction.args, data_frames)
+            int2char(instruction.args, data_frames)
         elif instruction.opcode == "STRI2INT":
             str2int(instruction.args, data_frames)
         elif instruction.opcode == "CONCAT":
@@ -103,31 +103,40 @@ def execute_inst(instructions,prg_len, counter, input_src, data_frames):
             strlen(instruction.args, data_frames)
         counter.inst_counter += 1
 
-
+def unpack_args(args, data_frames):
+    operands = []
+    for arg in args:
+        if args[1].arg_type == "var":
+            operands.append(get_var(arg, data_frames))
+        else:
+            operands.append(arg)
+    return operands
 def str2int(args, data_frames):
     if args[0].arg_type != "var":
         print("first argument must be a var")
         exit(55)#TODO
-    #TODO WRONG, NEED TO CHECK BETTER
     check_var(args, data_frames)
-    split_arg0 = args[0].value.split("@")
-    arg1 = get_var(args[1], data_frames)
-    arg2 = get_var(args[2], data_frames)
-    if arg1.data_type != "str" or arg2.data_type != "int":
+    assigned_var = get_var(args[0], data_frames)
+    # if args[1].arg_type == "var":
+    #     arg1 = get_var(args[1], data_frames)
+    # else:
+    #     arg1 = args[1]
+    # if args[2].arg_type == "var":
+    #     arg2 = get_var(args[2], data_frames)
+    # else:
+    #     arg2 = args[2]
+    operands = unpack_args(args, data_frames)
+    if operands[1].arg_type != "str" or operands[2].arg_type != "int":
         print("bad types")
         exit(55)#TODO
-    arg2value = int(arg2.value)
-    arg1value = arg1.value
+    arg2value = int(operands[2].value)
+    arg1value = operands[1].value
     if arg2value > len(arg1value)-1 or arg2value < 0:
         print("Bad indeex in str2int")
         exit(58)
     result = ord(arg1value[arg2value])
-    if split_arg0[0] == "GF":
-        data_frames.global_vars[split_arg0[1]].value = result
-    elif split_arg0[0] == "TF":
-        data_frames.temp_frame[split_arg0[1]].value = result
-    elif split_arg0[0] == "LF":
-        data_frames.frames[-1][split_arg0[1]].value = result
+    assigned_var.value = result
+    assigned_var.arg_type = "str"
 
 
 def concat(args, data_frames):
@@ -145,6 +154,26 @@ def setchar(args, data_frames):
 
 def strlen(args, data_frames):
     pass
+
+
+def int2char(args, data_frames):
+    if args[0].arg_type != "var":
+        print("first argument must be a var")
+        exit(55)#TODO
+    check_var(args, data_frames)
+    assigned_var = get_var(args[0], data_frames)
+    if args[1].arg_type == "var":
+        first_operand = get_var(args[1], data_frames)
+    else:
+        first_operand = args[1]
+    #TODO maybe check for type
+    try:
+        result = chr(int(first_operand.value))
+    except ValueError:
+        print("Value for int2char out of range")
+        exit(58)
+    assigned_var.value = result
+    assigned_var.arg_type = "str"
 
 
 def return_inst(data_frames, counter):
@@ -209,14 +238,6 @@ def pushs(args, data_frames):
         check_var(args, data_frames)
         assigning_var = get_var(args[0], data_frames)
         data_frames.data_stack.append(assigning_var)
-        split_arg = args[0].value.split("@")
-        # check_var_exists(split_arg[0], split_arg[1], data_frames)
-        # if split_arg[0] == "GF":
-        #     data_frames.data_stack.append(data_frames.global_vars[split_arg[1]])
-        # elif split_arg[0] == "TF":
-        #     data_frames.data_stack.append(data_frames.temp_frame[split_arg[1]])
-        # elif split_arg[0] == "LF":
-        #     data_frames.data_stack.append(data_frames.frames[-1][split_arg[1]])
     else:
         data_frames.data_stack.append(args[0])
 
@@ -293,12 +314,9 @@ def check_var(args, data_frames):
 
 
 def move(args, data_frames):
-    # check if var from arg1 exists
-    #TODO move types
     check_var(args, data_frames)
     assigned_var = get_var(args[0], data_frames)
     if args[1].arg_type == "var":
-        split_arg2 = args[1].value.split("@")
         assigned_var = get_var(args[1], data_frames)
     else:
         assigned_var.value = args[1].value
