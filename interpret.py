@@ -91,40 +91,32 @@ def execute_inst(instructions,prg_len, counter, input_src, data_frames):
             type_inst(instruction.args, data_frames)
         elif instruction.opcode == "INT2CHAR":
             int2char(instruction.args, data_frames)
-        elif instruction.opcode == "STRI2INT":
-            str2int(instruction.args, data_frames)
+        elif instruction.opcode in ["STRI2INT", "GETCHAR"]:
+            str2int_getchar(instruction.args, data_frames, instruction)
         elif instruction.opcode == "CONCAT":
             concat(instruction.args, data_frames)
-        elif instruction.opcode == "GETCHAR":
-            getchar(instruction.args, data_frames)
-        elif instruction.opcode == "SETCHAR":
-            setchar(instruction.args, data_frames)
         elif instruction.opcode == "STRLEN":
             strlen(instruction.args, data_frames)
+        elif instruction.opcode == "SETCHAR":
+            setchar(instruction.args, data_frames)
         counter.inst_counter += 1
 
 def unpack_args(args, data_frames):
+    check_var(args, data_frames)
     operands = []
     for arg in args:
-        if args[1].arg_type == "var":
+        if arg.arg_type == "var":
             operands.append(get_var(arg, data_frames))
         else:
             operands.append(arg)
     return operands
-def str2int(args, data_frames):
+
+
+def str2int_getchar(args, data_frames, instruction):
     if args[0].arg_type != "var":
         print("first argument must be a var")
         exit(55)#TODO
-    check_var(args, data_frames)
     assigned_var = get_var(args[0], data_frames)
-    # if args[1].arg_type == "var":
-    #     arg1 = get_var(args[1], data_frames)
-    # else:
-    #     arg1 = args[1]
-    # if args[2].arg_type == "var":
-    #     arg2 = get_var(args[2], data_frames)
-    # else:
-    #     arg2 = args[2]
     operands = unpack_args(args, data_frames)
     if operands[1].arg_type != "str" or operands[2].arg_type != "int":
         print("bad types")
@@ -134,9 +126,13 @@ def str2int(args, data_frames):
     if arg2value > len(arg1value)-1 or arg2value < 0:
         print("Bad indeex in str2int")
         exit(58)
-    result = ord(arg1value[arg2value])
+    if instruction.opcode == "STRI2INT":
+        result = ord(arg1value[arg2value])
+        assigned_var.arg_type = "int"
+    else:
+        result = arg1value[arg2value]
+        assigned_var.arg_type = "str"
     assigned_var.value = result
-    assigned_var.arg_type = "str"
 
 
 def concat(args, data_frames):
@@ -145,7 +141,22 @@ def concat(args, data_frames):
 
 
 def getchar(args, data_frames):
-    pass
+    if args[0].arg_type != "var":
+        print("first argument must be a var")
+        exit(55)  # TODO
+    assigned_var = get_var(args[0], data_frames)
+    operands = unpack_args(args, data_frames)
+    if operands[1].arg_type != "str" or operands[2].arg_type != "int":
+        print("bad types")
+        exit(55)  # TODO
+    arg2value = int(operands[2].value)
+    arg1value = operands[1].value
+    if arg2value > len(arg1value) - 1 or arg2value < 0:
+        print("Bad indeex in str2int")
+        exit(58)
+    result = arg1value[arg2value]
+    assigned_var.value = result
+    assigned_var.arg_type = "str"
 
 
 def setchar(args, data_frames):
@@ -153,19 +164,28 @@ def setchar(args, data_frames):
 
 
 def strlen(args, data_frames):
-    pass
+    if args[0].arg_type != "var":
+        print("first argument must be a var")
+        exit(55)  # TODO
+    assigned_var = get_var(args[0], data_frames)
+    operands = unpack_args(args, data_frames)
+    first_operand = operands[1]
+    # TODO maybe check for type
+    if first_operand.arg_type != "str":
+        print("Incompatible type")
+        exit(999)#TODO
+    result = len(first_operand.value)
+    assigned_var.value = result
+    assigned_var.arg_type = "int"
 
 
 def int2char(args, data_frames):
     if args[0].arg_type != "var":
         print("first argument must be a var")
         exit(55)#TODO
-    check_var(args, data_frames)
     assigned_var = get_var(args[0], data_frames)
-    if args[1].arg_type == "var":
-        first_operand = get_var(args[1], data_frames)
-    else:
-        first_operand = args[1]
+    operands = unpack_args(args, data_frames)
+    first_operand = operands[1]
     #TODO maybe check for type
     try:
         result = chr(int(first_operand.value))
@@ -219,7 +239,6 @@ def pop_frame(data_frames):
 
 
 def pops(args, data_frames):
-    #TODO pop types
     if args[0].arg_type != "var":
         print("argument must be a var")
         exit(99)  #TODO
@@ -395,16 +414,10 @@ def arithmetic(args, data_frames, instruction):
     if args[0].arg_type != "var":
         print("first argument must be a var")
         exit(55)#TODO
-    check_var(args, data_frames)
     result = 0
-    if args[1].arg_type == "var":
-        first_operand = get_var(args[1], data_frames)
-    else:
-        first_operand = args[1]
-    if args[2].arg_type == "var":
-        second_operand = get_var(args[2], data_frames)
-    else:
-        second_operand = args[2]
+    operands = unpack_args(args, data_frames)
+    first_operand = operands[1]
+    second_operand = operands[2]
     if first_operand.arg_type != "int" or second_operand.arg_type != "int":
         print("both arguments must be int")
         exit(32)#TODO
@@ -430,17 +443,10 @@ def and_or(args, data_frames, instruction):
     if args[0].arg_type != "var":
         print("first argument must be a var")
         exit(55)#TODO
-    check_var(args, data_frames)
-    split_arg1 = args[0].value.split("@")
     result = None
-    if args[1].arg_type == "var":
-        first_operand = get_var(args[1], data_frames)
-    else:
-        first_operand = args[1]
-    if args[2].arg_type == "var":
-        second_operand = get_var(args[2], data_frames)
-    else:
-        second_operand = args[2]
+    operands = unpack_args(args, data_frames)
+    first_operand = operands[1]
+    second_operand = operands[2]
     if instruction.opcode in ["AND", "OR"]:
         if first_operand.arg_type != "bool" or second_operand.arg_type != "bool":
             print("both arguments must be bool")
@@ -498,16 +504,10 @@ def not_inst(args, data_frames):
     if args[0].arg_type != "var":
         print("first argument must be a var")
         exit(55)#TODO
-    check_var(args, data_frames)
     assigned_var = get_var(args[0], data_frames)
-    split_arg1 = args[0].value.split("@")
     result = None
-    if args[1].arg_type == "var":
-        first_operand = get_var(args[1], data_frames)
-    else:
-        first_operand = args[1]
-
-    #TODO fix type check
+    operands = unpack_args(args, data_frames)
+    first_operand = operands[1]
 
     if first_operand.arg_type != "bool":
         print("argument must be bool")
