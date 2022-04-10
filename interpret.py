@@ -101,6 +101,12 @@ def execute_inst(instructions,prg_len, counter, input_src, data_frames):
             strlen(instruction.args, data_frames)
         elif instruction.opcode == "SETCHAR":
             setchar(instruction.args, data_frames)
+        elif instruction.opcode == "DPRINT":
+            pass
+        elif instruction.opcode == "BREAK":
+            pass
+        elif instruction.opcode == "EXIT":
+            pass #TODO
         counter.inst_counter += 1
 
 def unpack_args(args, data_frames):
