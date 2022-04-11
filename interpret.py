@@ -1,4 +1,3 @@
-from ast import Pass
 from posixpath import split
 import re
 import argparse
@@ -23,7 +22,7 @@ class Argument:
 class Variable:
     def __init__(self, name, is_global, value, arg_type):
         self.name = name
-        self.is_global = is_global
+        self.is_global = is_global#TODO
         self.value = value
         self.arg_type = arg_type
 
@@ -42,9 +41,6 @@ class DataFrames:
         self.labels = {}
         self.call_stack = []
         self.data_stack = []
-
-
-global_vars = {}
 
 
 def execute_inst(instructions,prg_len, counter, input_src, data_frames):
@@ -106,19 +102,20 @@ def execute_inst(instructions,prg_len, counter, input_src, data_frames):
         elif instruction.opcode == "BREAK":
             pass
         elif instruction.opcode == "EXIT":
-            pass #TODO
+            exit_inst(instruction.args, data_frames)
         counter.inst_counter += 1
 
-def unpack_args(args, data_frames):
-    check_var(args, data_frames)
-    operands = []
-    for arg in args:
-        if arg.arg_type == "var":
-            operands.append(get_var(arg, data_frames))
-        else:
-            operands.append(arg)
-    return operands
 
+
+
+def exit_inst(args, data_frames):
+    operands = unpack_args(args, data_frames)
+    if operands[0].arg_type != "int":
+        exit(55)#TODO
+    exit_value = int(operands[0].value)
+    if exit_value < 0 or exit_value > 49:
+        exit(57)
+    exit(exit_value)
 
 def str2int_getchar(args, data_frames, instruction):
     if args[0].arg_type != "var":
@@ -126,20 +123,20 @@ def str2int_getchar(args, data_frames, instruction):
         exit(55)#TODO
     assigned_var = get_var(args[0], data_frames)
     operands = unpack_args(args, data_frames)
-    if operands[1].arg_type != "str" or operands[2].arg_type != "int":
+    if operands[1].arg_type != "string" or operands[2].arg_type != "int":
         print("bad types")
         exit(55)#TODO
     arg2value = int(operands[2].value)
     arg1value = operands[1].value
     if arg2value > len(arg1value)-1 or arg2value < 0:
-        print("Bad indeex in str2int")
+        print("Bad indeex in str2int or getchar")
         exit(58)
     if instruction.opcode == "STRI2INT":
         result = ord(arg1value[arg2value])
         assigned_var.arg_type = "int"
     else:
         result = arg1value[arg2value]
-        assigned_var.arg_type = "str"
+        assigned_var.arg_type = "string"
     assigned_var.value = result
 
 
@@ -149,11 +146,11 @@ def concat(args, data_frames):
         exit(55)#TODO
     assigned_var = get_var(args[0], data_frames)
     operands = unpack_args(args, data_frames)
-    if operands[1].arg_type != "str" or operands[2].arg_type != "int":
+    if operands[1].arg_type != "string" or operands[2].arg_type != "string":
         print("bad types")
         exit(55)#TODO
     assigned_var.value = operands[1].value + operands[2].value
-    assigned_var.arg_type = "str"
+    assigned_var.arg_type = "string"
 
 
 
@@ -163,7 +160,7 @@ def getchar(args, data_frames):
         exit(55)  # TODO
     assigned_var = get_var(args[0], data_frames)
     operands = unpack_args(args, data_frames)
-    if operands[1].arg_type != "str" or operands[2].arg_type != "int":
+    if operands[1].arg_type != "string" or operands[2].arg_type != "string":
         print("bad types")
         exit(55)  # TODO
     arg2value = int(operands[2].value)
@@ -173,7 +170,7 @@ def getchar(args, data_frames):
         exit(58)
     result = arg1value[arg2value]
     assigned_var.value = result
-    assigned_var.arg_type = "str"
+    assigned_var.arg_type = "string"
 
 
 def setchar(args, data_frames):
@@ -182,7 +179,7 @@ def setchar(args, data_frames):
         exit(55)#TODO
     assigned_var = get_var(args[0], data_frames)
     operands = unpack_args(args, data_frames)
-    if operands[1].arg_type != "int" or operands[2].arg_type != "str":
+    if operands[1].arg_type != "int" or operands[2].arg_type != "string":
         print("bad types")
         exit(55)#TODO
     if operands[1].value < 0 or operands[1].value > len(operands[0].value):
@@ -202,7 +199,7 @@ def strlen(args, data_frames):
     operands = unpack_args(args, data_frames)
     first_operand = operands[1]
     # TODO maybe check for type
-    if first_operand.arg_type != "str":
+    if first_operand.arg_type != "string":
         print("Incompatible type")
         exit(999)#TODO
     result = len(first_operand.value)
@@ -224,7 +221,7 @@ def int2char(args, data_frames):
         print("Value for int2char out of range")
         exit(58)
     assigned_var.value = result
-    assigned_var.arg_type = "str"
+    assigned_var.arg_type = "string"
 
 
 def return_inst(data_frames, counter):
@@ -323,25 +320,13 @@ def type_inst(args, data_frames):
     if args[1].arg_type == "var":
         assigning_var = get_var(args[1], data_frames)
         assigned_var.value = assigning_var.arg_type
-        assigned_var.arg_type = "str"
+        assigned_var.arg_type = "string"
     else:
         assigned_var.value = args[1].arg_type
-        assigned_var.arg_type = "str"
+        assigned_var.arg_type = "string"
 
 
-def check_var_doesnt_exist(type_arg, var_name, data_frames):
-    if type_arg == "GF":
-        if var_name in global_vars:
-            print("variable already defined")
-            exit(55)
-    elif type_arg == "TF":
-        if var_name in data_frames.temp_frame:
-            print("variable already defined")
-            exit(55)
-    elif type_arg == "LF":
-        if var_name in data_frames.frames[-1]:
-            print("variable already defined")
-            exit(55)
+
 
 def defvar(args, data_frames):
     split_arg = args[0].value.split("@")
@@ -360,33 +345,6 @@ def defvar(args, data_frames):
             exit(55)
         var = Variable(split_arg[1], is_global, None, "")
         data_frames.temp_frame[var.name] = var
-
-
-def check_var_exists(type, var_name, data_frames):
-    if type == "GF":
-        if var_name not in data_frames.global_vars:
-            print("variable not in global_vars")
-            exit(55)
-    elif type == "TF":
-        if data_frames.temp_frame is None:
-            print("TF doesnt exist")
-            exit(55)
-        if var_name not in data_frames.temp_frame:
-            print("variable not in temporary frame")
-            exit(55)
-    elif type == "LF":
-        #TODO CHECK FRAME EXISTS
-        if var_name not in data_frames.frames[-1]:
-            print("variable not in local frame")
-            exit(55)
-
-
-def check_var(args, data_frames):
-    for arg in args:
-        if arg.arg_type == "var":
-            split_arg = arg.value.split("@")
-            check_var_exists(split_arg[0], split_arg[1], data_frames)
-
 
 def move(args, data_frames):
     check_var(args, data_frames)
@@ -427,7 +385,7 @@ def read(args, counter, input_src, data_frames):
             return
     elif args[1].value == "string":
         assigned_var.value = str(input_src[counter.file_line])
-        assigned_var.arg_type = "str"
+        assigned_var.arg_type = "string"
     elif args[1].value == "bool":
         assigned_var.arg_type = "bool"
         if input_src[counter.file_line] == "true":
@@ -441,31 +399,6 @@ def read(args, counter, input_src, data_frames):
     counter.file_line += 1
 
 
-def get_var(argument, data_frames):
-    split_arg2 = argument.value.split("@")
-    if split_arg2[0] == "GF":
-        value = data_frames.global_vars[split_arg2[1]]
-    elif split_arg2[0] == "TF":
-        value = data_frames.temp_frame[split_arg2[1]]
-    elif split_arg2[0] == "LF":
-        value = data_frames.frames[-1][split_arg2[1]]
-    return value
-
-
-def check_int(value):
-    try:
-        int(value)
-        return True
-    except ValueError:
-        return False
-
-
-def check_bool(value):
-    if value == "false" or value == "true":
-        return True
-    return False
-
-
 def arithmetic(args, data_frames, instruction):
     if args[0].arg_type != "var":
         print("first argument must be a var")
@@ -476,7 +409,7 @@ def arithmetic(args, data_frames, instruction):
     second_operand = operands[2]
     if first_operand.arg_type != "int" or second_operand.arg_type != "int":
         print("both arguments must be int")
-        exit(32)#TODO
+        exit(53)#TODO
     first_value = int(first_operand.value)
     second_value = int(second_operand.value)
     if instruction.opcode == "ADD":
@@ -506,19 +439,23 @@ def and_or(args, data_frames, instruction):
     if instruction.opcode in ["AND", "OR"]:
         if first_operand.arg_type != "bool" or second_operand.arg_type != "bool":
             print("both arguments must be bool")
-            exit(32)  # TODO
-    first_value = convert_str_bool(first_operand.value)
-    second_value = convert_str_bool(second_operand.value)
-    if instruction.opcode == "AND":
-        result = first_value and second_value
-    if instruction.opcode == "OR":
-        result = first_value or second_value
+            exit(53)  # TODO
+        first_value = convert_str_bool(first_operand.value)
+        second_value = convert_str_bool(second_operand.value)
+        if instruction.opcode == "AND":
+            result = first_value and second_value
+        if instruction.opcode == "OR":
+            result = first_value or second_value
+        result_var = get_var(args[0], data_frames)
+        result_var.value = convert_bool_str(result)
+        result_var.arg_type = "bool"
+        return
     if instruction.opcode in ["LT", "GT", "EQ"]:
         result = logical(first_operand, second_operand, instruction)
+        result_var = get_var(args[0], data_frames)
+        result_var.value = result
+        result_var.arg_type = "bool"
 
-    result_var = get_var(args[0], data_frames)
-    result_var.value = convert_bool_str(result)
-    result_var.arg_type = "bool"
 
 
 def logical(first_operand, second_operand, instruction):
@@ -545,17 +482,6 @@ def logical(first_operand, second_operand, instruction):
     return convert_bool_str(result)
 
 
-def convert_bool_str(boolean):
-    if boolean:
-        return "true"
-    return "false"
-
-
-def convert_str_bool(str_val):
-    if str_val == "true":
-        return True
-    return False
-
 def not_inst(args, data_frames):
     if args[0].arg_type != "var":
         print("first argument must be a var")
@@ -577,6 +503,95 @@ def not_inst(args, data_frames):
     assigned_var.value = result
     assigned_var.arg_type = "bool"
 
+
+def get_var(argument, data_frames):
+    split_arg2 = argument.value.split("@")
+    if split_arg2[0] == "GF":
+        value = data_frames.global_vars[split_arg2[1]]
+    elif split_arg2[0] == "TF":
+        value = data_frames.temp_frame[split_arg2[1]]
+    elif split_arg2[0] == "LF":
+        value = data_frames.frames[-1][split_arg2[1]]
+    return value
+
+def unpack_args(args, data_frames):
+    check_var(args, data_frames)
+    operands = []
+    for arg in args:
+        if arg.arg_type == "var":
+            operands.append(get_var(arg, data_frames))
+        else:
+            operands.append(arg)
+    return operands
+
+
+def check_int(value):
+    try:
+        int(value)
+        return True
+    except ValueError:
+        return False
+
+
+def check_var_doesnt_exist(type_arg, var_name, data_frames):
+    if type_arg == "GF":
+        if var_name in data_frames.global_vars:
+            print("variable already defined")
+            exit(55)
+    elif type_arg == "TF":
+        if var_name in data_frames.temp_frame:
+            print("variable already defined")
+            exit(55)
+    elif type_arg == "LF":
+        if var_name in data_frames.frames[-1]:
+            print("variable already defined")
+            exit(55)
+
+
+def check_bool(value):
+    if value == "false" or value == "true":
+        return True
+    return False
+
+
+def convert_bool_str(boolean):
+    if boolean:
+        return "true"
+    return "false"
+
+
+def convert_str_bool(str_val):
+    if str_val == "true":
+        return True
+    return False
+
+
+def check_var_exists(type, var_name, data_frames):
+    if type == "GF":
+        if var_name not in data_frames.global_vars:
+            print("variable not in global_vars")
+            exit(55)
+    elif type == "TF":
+        if data_frames.temp_frame is None:
+            print("TF doesnt exist")
+            exit(55)
+        if var_name not in data_frames.temp_frame:
+            print("variable not in temporary frame")
+            exit(55)
+    elif type == "LF":
+        #TODO CHECK FRAME EXISTS
+        if var_name not in data_frames.frames[-1]:
+            print("variable not in local frame")
+            exit(55)
+
+
+def check_var(args, data_frames):
+    for arg in args:
+        if arg.arg_type == "var":
+            split_arg = arg.value.split("@")
+            check_var_exists(split_arg[0], split_arg[1], data_frames)
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--source", nargs=1, help="help")
@@ -587,33 +602,49 @@ def main():
     # One file must be present
     if args["source"] == None and args["input"] == None:
         ap.print_help()
-        exit(1234)
+        exit(10)#TODO
     # both inputs given as files
     if args["source"] != None and args["input"] != None:
-        src="file"
+        src = "file"
         src_src = args["source"]
-        f = open(args["input"][0], "r")
+        try:
+            f = open(args["input"][0], "r")
+        except OSError:
+            print("Could not open input_file")
+            exit(11)  # TODO
         input_src = f.read()
         input_src = input_src.split('\n')
     # source code given as file
     elif args["source"]:
-        src="file"
+        src = "file"
         input_src = sys.stdin
         input_src = input_src.read()
         input_src = input_src.split('\n')
         src_src = args["source"]
     else:
         # input given as file
-        src="stdin"
+        src = "stdin"
         src_src = sys.stdin
         src_src = src_src.read()
-        f = open(args["input"][0], "r")
+        try:
+            f = open(args["input"][0], "r")
+        except OSError:
+            print("Could not open input_file")
+            exit(11)#TODO
         input_src = f.read()
         input_src = input_src.split('\n')
 
     if src != "stdin":
-        xml_code = open(src_src[0])
-        tree = ET.parse(xml_code)
+        try:
+            xml_code = open(src_src[0])
+        except OSError:
+            print("Could not open source_file")
+            exit(11)
+        try:
+            tree = ET.parse(xml_code)
+        except ET.ParseError:
+            print("Bad xml structure")
+            exit(31)
         root = tree.getroot()
     else:
         root = ET.fromstring(src_src)
@@ -640,6 +671,7 @@ def main():
     prg_len = len(instructions)
 
     execute_inst(instructions,prg_len, counter, input_src, data_frames)
+
 
 if __name__ == "__main__":
     main()
